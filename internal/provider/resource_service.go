@@ -580,6 +580,12 @@ func getAndBuildServiceInstance(ctx context.Context, client graphql.Client, proj
 		return err
 	}
 
+	triggersResponse, err := listDeploymentTriggers(ctx, client, projectId, environment.Id, serviceId)
+
+	if err != nil {
+		return err
+	}
+
 	if response.ServiceInstance.CronSchedule != nil {
 		data.CronSchedule = types.StringValue(*response.ServiceInstance.CronSchedule)
 	}
@@ -600,6 +606,12 @@ func getAndBuildServiceInstance(ctx context.Context, client graphql.Client, proj
 		if response.ServiceInstance.Source.Repo != nil {
 			data.SourceRepo = types.StringValue(*response.ServiceInstance.Source.Repo)
 		}
+	}
+
+	// up to 1 deployment trigger is allowed for one (service, environment) pair. So, dealing with [0] only
+	tflog.Warn(ctx, fmt.Sprintf("triggersResponse: %+v", triggersResponse))
+	if edges := triggersResponse.DeploymentTriggers.Edges; len(edges) > 0 {
+		data.SourceRepoBranch = types.StringValue(edges[0].Node.Branch)
 	}
 
 	return nil
