@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-
 	"github.com/Khan/genqlient/graphql"
 	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -13,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -46,15 +46,16 @@ var volumeAttrTypes = map[string]attr.Type{
 }
 
 type ServiceResourceModel struct {
-	Id            types.String `tfsdk:"id"`
-	Name          types.String `tfsdk:"name"`
-	ProjectId     types.String `tfsdk:"project_id"`
-	CronSchedule  types.String `tfsdk:"cron_schedule"`
-	SourceImage   types.String `tfsdk:"source_image"`
-	SourceRepo    types.String `tfsdk:"source_repo"`
-	RootDirectory types.String `tfsdk:"root_directory"`
-	ConfigPath    types.String `tfsdk:"config_path"`
-	Volume        types.Object `tfsdk:"volume"`
+	Id               types.String `tfsdk:"id"`
+	Name             types.String `tfsdk:"name"`
+	ProjectId        types.String `tfsdk:"project_id"`
+	CronSchedule     types.String `tfsdk:"cron_schedule"`
+	SourceImage      types.String `tfsdk:"source_image"`
+	SourceRepo       types.String `tfsdk:"source_repo"`
+	SourceRepoBranch types.String `tfsdk:"source_repo_branch"`
+	RootDirectory    types.String `tfsdk:"root_directory"`
+	ConfigPath       types.String `tfsdk:"config_path"`
+	Volume           types.Object `tfsdk:"volume"`
 }
 
 func (r *ServiceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -108,6 +109,15 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:            true,
 				Validators: []validator.String{
 					stringvalidator.UTF8LengthAtLeast(3),
+				},
+			},
+			"source_repo_branch": schema.StringAttribute{
+				MarkdownDescription: "Source repository branch to be used with `source_repo`. Will be used `main` if not specified.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("main"),
+				Validators: []validator.String{
+					stringvalidator.UTF8LengthAtLeast(1),
 				},
 			},
 			"root_directory": schema.StringAttribute{
@@ -263,6 +273,24 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	tflog.Trace(ctx, "created service settings")
+
+	// updateServiceInstance not allows to specify source repo branch, which leads to Railway ignoring attached
+	// source repo since beginning of 2024.
+	// Hence, attaching repo or docker image explicitly using connectService, which allows to specify all of them
+	if !data.SourceRepo.IsNull() || !data.SourceImage.IsNull() {
+		connectInput := buildServiceConnectInput(data)
+
+		connServiceResponse, err := connectService(ctx, *r.client, data.Id.ValueString(), connectInput)
+
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to connect repo or image to service, got error: %s", err))
+			return
+		}
+
+		data.SourceRepoBranch = types.StringPointerValue(connectInput.Branch)
+
+		tflog.Warn(ctx, fmt.Sprintf("connectServiceResponse: %v", connServiceResponse))
+	}
 
 	err = getAndBuildServiceInstance(ctx, *r.client, data.ProjectId.ValueString(), data.Id.ValueString(), data)
 
@@ -523,19 +551,6 @@ func (r *ServiceResource) ImportState(ctx context.Context, req resource.ImportSt
 func buildServiceInstanceInput(data *ServiceResourceModel) ServiceInstanceUpdateInput {
 	var instanceInput ServiceInstanceUpdateInput
 
-	// Update the source attributes
-	if !data.SourceImage.IsNull() {
-		instanceInput.Source = &ServiceSourceInput{
-			Image: data.SourceImage.ValueStringPointer(),
-		}
-	} else if !data.SourceRepo.IsNull() {
-		instanceInput.Source = &ServiceSourceInput{
-			Repo: data.SourceRepo.ValueStringPointer(),
-		}
-	} else {
-		instanceInput.Source = &ServiceSourceInput{}
-	}
-
 	if !data.CronSchedule.IsNull() {
 		instanceInput.CronSchedule = data.CronSchedule.ValueStringPointer()
 	}
@@ -623,4 +638,22 @@ func getAndBuildVolumeInstance(ctx context.Context, client graphql.Client, proje
 	}
 
 	return nil
+}
+
+func buildServiceConnectInput(data *ServiceResourceModel) ServiceConnectInput {
+	var connectInput ServiceConnectInput
+
+	if !data.SourceRepo.IsNull() {
+		connectInput.Repo = data.SourceRepo.ValueStringPointer()
+		if !data.SourceRepoBranch.IsNull() {
+			connectInput.Branch = data.SourceRepoBranch.ValueStringPointer()
+		} else {
+			defaultBranch := "main"
+			connectInput.Branch = &defaultBranch
+		}
+	} else if !data.SourceImage.IsNull() {
+		connectInput.Image = data.SourceImage.ValueStringPointer()
+	}
+
+	return connectInput
 }

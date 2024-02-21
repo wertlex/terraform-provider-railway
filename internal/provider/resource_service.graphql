@@ -136,3 +136,15 @@ mutation updateVolumeInstance(
 mutation deleteVolume($id: String!) {
   volumeDelete(volumeId: $id)
 }
+
+# @genqlient(for: "ServiceConnectInput.branch", omitempty: true, pointer: true)
+# @genqlient(for: "ServiceConnectInput.image", omitempty: true, pointer: true)
+# @genqlient(for: "ServiceConnectInput.repo", omitempty: true, pointer: true)
+mutation connectService(
+  $id: String!
+  $input: ServiceConnectInput!
+) {
+  serviceConnect(id: $id, input: $input) {
+     ...Service
+  }
+}
