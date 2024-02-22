@@ -101,6 +101,9 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:            true,
 				Validators: []validator.String{
 					stringvalidator.UTF8LengthAtLeast(1),
+					stringvalidator.ConflictsWith(path.MatchRoot("source_repo")),
+					stringvalidator.ConflictsWith(path.MatchRoot("root_directory")),
+					stringvalidator.ConflictsWith(path.MatchRoot("config_path")),
 				},
 			},
 			"source_repo": schema.StringAttribute{
@@ -228,7 +231,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	data.Id = types.StringValue(service.Id)
 	data.Name = types.StringValue(service.Name)
 	data.ProjectId = types.StringValue(service.ProjectId)
-	data.SourceRepoBranch = types.StringNull()
+	data.SourceRepoBranch = types.StringNull() // TODO: DELETE ME
 
 	if !data.Volume.IsNull() {
 		resp.Diagnostics.Append(data.Volume.As(ctx, &volumeData, basetypes.ObjectAsOptions{})...)
