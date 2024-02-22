@@ -229,9 +229,6 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	service := response.ServiceCreate.Service
 
 	data.Id = types.StringValue(service.Id)
-	data.Name = types.StringValue(service.Name)
-	data.ProjectId = types.StringValue(service.ProjectId)
-	data.SourceRepoBranch = types.StringNull() // TODO: DELETE ME
 
 	if !data.Volume.IsNull() {
 		resp.Diagnostics.Append(data.Volume.As(ctx, &volumeData, basetypes.ObjectAsOptions{})...)
@@ -278,7 +275,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 
 	// updateServiceInstance not allows to specify source repo branch, which leads to Railway ignoring attached
 	// source repo since beginning of 2024.
-	// Hence, attaching repo or docker image explicitly using connectService, which allows to specify all of them
+	// Hence, attaching repo explicitly using connectService call, which allows to specify all required params
 	if !data.SourceRepo.IsNull() {
 		connectInput := buildServiceConnectInputForGitRepo(data)
 
@@ -286,17 +283,6 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 
 		if err != nil {
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to connect repo to service, got error: %s", err))
-			return
-		}
-
-		data.SourceRepoBranch = types.StringPointerValue(connectInput.Branch)
-	} else if !data.SourceImage.IsNull() {
-		connectInput := buildServiceConnectInputForDockerImage(data)
-
-		_, err := connectService(ctx, *r.client, data.Id.ValueString(), connectInput)
-
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to connect docker image to service, got error: %s", err))
 			return
 		}
 	}
@@ -718,24 +704,9 @@ func getAndBuildVolumeInstance(ctx context.Context, client graphql.Client, proje
 func buildServiceConnectInputForGitRepo(data *ServiceResourceModel) ServiceConnectInput {
 	var connectInput ServiceConnectInput
 
+	// it is guaranteed by schema that both of them are specified or both empty
 	connectInput.Repo = data.SourceRepo.ValueStringPointer()
-	if !data.SourceRepoBranch.IsNull() {
-		connectInput.Branch = data.SourceRepoBranch.ValueStringPointer()
-	} else {
-		defaultBranch := "main"
-		connectInput.Branch = &defaultBranch
-	}
-
-	return connectInput
-}
-
-// buildServiceConnectInputForDockerImage expects `data.SourceImage` to be defined
-func buildServiceConnectInputForDockerImage(data *ServiceResourceModel) ServiceConnectInput {
-	var connectInput ServiceConnectInput
-
-	if !data.SourceImage.IsNull() {
-		connectInput.Image = data.SourceImage.ValueStringPointer()
-	}
+	connectInput.Branch = data.SourceRepoBranch.ValueStringPointer()
 
 	return connectInput
 }
