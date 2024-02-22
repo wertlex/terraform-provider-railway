@@ -108,12 +108,12 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:            true,
 				Validators: []validator.String{
 					stringvalidator.UTF8LengthAtLeast(3),
+					stringvalidator.AlsoRequires(path.MatchRoot("source_repo_branch")),
 				},
 			},
 			"source_repo_branch": schema.StringAttribute{
-				MarkdownDescription: "Source repository branch to be used with `source_repo`. Will be used `main` if not specified.",
+				MarkdownDescription: "Source repository branch to be used with `source_repo`. Must be specified if `source_repo` is specified.",
 				Optional:            true,
-				Computed:            true,
 				Validators: []validator.String{
 					stringvalidator.UTF8LengthAtLeast(1),
 				},
@@ -494,6 +494,52 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 
 			tflog.Trace(ctx, "updated a volume instance")
 		}
+	}
+
+	// Delete repo connection if it was removed
+	if data.SourceRepo.IsNull() && !state.SourceRepo.IsNull() {
+		_, err := disconnectService(ctx, *r.client, service.Id)
+
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to disconnect service from repo, got error: %s", err))
+			return
+		}
+
+		data.SourceRepoBranch = types.StringNull()
+
+		tflog.Trace(ctx, "service disconnected from repo")
+	}
+
+	// Create repo connection if it was added
+	if !data.SourceRepo.IsNull() && state.SourceRepo.IsNull() {
+		connectInput := buildServiceConnectInputForGitRepo(data)
+
+		_, err := connectService(ctx, *r.client, data.Id.ValueString(), connectInput)
+
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to connect repo to service, got error: %s", err))
+			return
+		}
+
+		data.SourceRepoBranch = types.StringPointerValue(connectInput.Branch)
+	}
+
+	// Update repo connection if it was changed
+	if !data.SourceRepo.IsNull() && !state.SourceRepo.IsNull() {
+
+		if state.SourceRepo != data.SourceRepo || state.SourceRepoBranch != data.SourceRepoBranch {
+			connectInput := buildServiceConnectInputForGitRepo(data)
+
+			_, err := connectService(ctx, *r.client, data.Id.ValueString(), connectInput)
+
+			if err != nil {
+				resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to connect repo to service, got error: %s", err))
+				return
+			}
+
+			data.SourceRepoBranch = types.StringPointerValue(connectInput.Branch)
+		}
+
 	}
 
 	err = getAndBuildServiceInstance(ctx, *r.client, data.ProjectId.ValueString(), data.Id.ValueString(), data)

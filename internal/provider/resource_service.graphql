@@ -148,3 +148,11 @@ mutation connectService(
      ...Service
   }
 }
+
+mutation disconnectService(
+  $id: String!
+) {
+  serviceDisconnect(id: $id) {
+    id
+  }
+}

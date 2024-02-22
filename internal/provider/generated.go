@@ -947,6 +947,14 @@ type __deleteVolumeInput struct {
 // GetId returns __deleteVolumeInput.Id, and is useful for accessing the field via an interface.
 func (v *__deleteVolumeInput) GetId() string { return v.Id }
 
+// __disconnectServiceInput is used internally by genqlient
+type __disconnectServiceInput struct {
+	Id string `json:"id"`
+}
+
+// GetId returns __disconnectServiceInput.Id, and is useful for accessing the field via an interface.
+func (v *__disconnectServiceInput) GetId() string { return v.Id }
+
 // __getCustomDomainInput is used internally by genqlient
 type __getCustomDomainInput struct {
 	Id        string `json:"id"`
@@ -2068,6 +2076,25 @@ type deleteVolumeResponse struct {
 
 // GetVolumeDelete returns deleteVolumeResponse.VolumeDelete, and is useful for accessing the field via an interface.
 func (v *deleteVolumeResponse) GetVolumeDelete() bool { return v.VolumeDelete }
+
+// disconnectServiceResponse is returned by disconnectService on success.
+type disconnectServiceResponse struct {
+	// Disconnect a service from a repo
+	ServiceDisconnect disconnectServiceServiceDisconnectService `json:"serviceDisconnect"`
+}
+
+// GetServiceDisconnect returns disconnectServiceResponse.ServiceDisconnect, and is useful for accessing the field via an interface.
+func (v *disconnectServiceResponse) GetServiceDisconnect() disconnectServiceServiceDisconnectService {
+	return v.ServiceDisconnect
+}
+
+// disconnectServiceServiceDisconnectService includes the requested fields of the GraphQL type Service.
+type disconnectServiceServiceDisconnectService struct {
+	Id string `json:"id"`
+}
+
+// GetId returns disconnectServiceServiceDisconnectService.Id, and is useful for accessing the field via an interface.
+func (v *disconnectServiceServiceDisconnectService) GetId() string { return v.Id }
 
 // getCustomDomainCustomDomain includes the requested fields of the GraphQL type CustomDomain.
 type getCustomDomainCustomDomain struct {
@@ -4063,6 +4090,38 @@ mutation deleteVolume ($id: String!) {
 	var err error
 
 	var data deleteVolumeResponse
+	resp := &graphql.Response{Data: &data}
+
+	err = client.MakeRequest(
+		ctx,
+		req,
+		resp,
+	)
+
+	return &data, err
+}
+
+func disconnectService(
+	ctx context.Context,
+	client graphql.Client,
+	id string,
+) (*disconnectServiceResponse, error) {
+	req := &graphql.Request{
+		OpName: "disconnectService",
+		Query: `
+mutation disconnectService ($id: String!) {
+	serviceDisconnect(id: $id) {
+		id
+	}
+}
+`,
+		Variables: &__disconnectServiceInput{
+			Id: id,
+		},
+	}
+	var err error
+
+	var data disconnectServiceResponse
 	resp := &graphql.Response{Data: &data}
 
 	err = client.MakeRequest(
