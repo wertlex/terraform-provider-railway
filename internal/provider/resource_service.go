@@ -606,6 +606,13 @@ func (r *ServiceResource) ImportState(ctx context.Context, req resource.ImportSt
 func buildServiceInstanceInput(data *ServiceResourceModel) ServiceInstanceUpdateInput {
 	var instanceInput ServiceInstanceUpdateInput
 
+	// Update the source image attributes (source repo handled differently)
+	if !data.SourceImage.IsNull() {
+		instanceInput.Source = &ServiceSourceInput{
+			Image: data.SourceImage.ValueStringPointer(),
+		}
+	}
+
 	if !data.CronSchedule.IsNull() {
 		instanceInput.CronSchedule = data.CronSchedule.ValueStringPointer()
 	}
