@@ -102,6 +102,7 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Validators: []validator.String{
 					stringvalidator.UTF8LengthAtLeast(1),
 					stringvalidator.ConflictsWith(path.MatchRoot("source_repo")),
+					stringvalidator.ConflictsWith(path.MatchRoot("source_repo_branch")),
 					stringvalidator.ConflictsWith(path.MatchRoot("root_directory")),
 					stringvalidator.ConflictsWith(path.MatchRoot("config_path")),
 				},
@@ -119,6 +120,7 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:            true,
 				Validators: []validator.String{
 					stringvalidator.UTF8LengthAtLeast(1),
+					stringvalidator.AlsoRequires(path.MatchRoot("source_repo")),
 				},
 			},
 			"root_directory": schema.StringAttribute{
@@ -229,6 +231,8 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	service := response.ServiceCreate.Service
 
 	data.Id = types.StringValue(service.Id)
+	data.Name = types.StringValue(service.Name)
+	data.ProjectId = types.StringValue(service.ProjectId)
 
 	if !data.Volume.IsNull() {
 		resp.Diagnostics.Append(data.Volume.As(ctx, &volumeData, basetypes.ObjectAsOptions{})...)
@@ -495,8 +499,6 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 		}
 
 		data.SourceRepoBranch = types.StringNull()
-
-		tflog.Trace(ctx, "service disconnected from repo")
 	}
 
 	// Create repo connection if it was added
@@ -509,8 +511,6 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to connect repo to service, got error: %s", err))
 			return
 		}
-
-		data.SourceRepoBranch = types.StringPointerValue(connectInput.Branch)
 	}
 
 	// Update repo connection if it was changed
