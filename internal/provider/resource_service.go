@@ -266,14 +266,20 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		tflog.Trace(ctx, "updated a volume")
 	}
 
-	instanceInput := buildServiceInstanceInput(data)
-
-	_, err = updateServiceInstance(ctx, *r.client, data.Id.ValueString(), instanceInput)
-
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create service settings, got error: %s", err))
-		return
-	}
+	//tflog.Warn(ctx, fmt.Sprintf("will create instance input"))
+	//
+	//instanceInput := buildServiceInstanceInput(data)
+	//
+	//tflog.Warn(ctx, fmt.Sprintf("intanceInput: %+v", instanceInput))
+	//tflog.Warn(ctx, fmt.Sprintf("intanceInput.Source: %+v", instanceInput.Source))
+	//tflog.Warn(ctx, fmt.Sprintf("intanceInput.Source.Image: %s", *instanceInput.Source.Image))
+	//
+	//_, err = updateServiceInstance(ctx, *r.client, data.Id.ValueString(), instanceInput)
+	//
+	//if err != nil {
+	//	resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create service settings, got error: %s", err))
+	//	return
+	//}
 
 	tflog.Trace(ctx, "created service settings")
 
@@ -515,7 +521,6 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 
 	// Update repo connection if it was changed
 	if !data.SourceRepo.IsNull() && !state.SourceRepo.IsNull() {
-
 		if state.SourceRepo != data.SourceRepo || state.SourceRepoBranch != data.SourceRepoBranch {
 			connectInput := buildServiceConnectInputForGitRepo(data)
 
@@ -525,10 +530,7 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 				resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to connect repo to service, got error: %s", err))
 				return
 			}
-
-			data.SourceRepoBranch = types.StringPointerValue(connectInput.Branch)
 		}
-
 	}
 
 	err = getAndBuildServiceInstance(ctx, *r.client, data.ProjectId.ValueString(), data.Id.ValueString(), data)
@@ -604,11 +606,11 @@ func buildServiceInstanceInput(data *ServiceResourceModel) ServiceInstanceUpdate
 	}
 
 	if !data.RootDirectory.IsNull() {
-		instanceInput.RootDirectory = data.RootDirectory.ValueString()
+		instanceInput.RootDirectory = data.RootDirectory.ValueStringPointer()
 	}
 
 	if !data.ConfigPath.IsNull() {
-		instanceInput.RailwayConfigFile = data.ConfigPath.ValueString()
+		instanceInput.RailwayConfigFile = data.ConfigPath.ValueStringPointer()
 	}
 
 	return instanceInput

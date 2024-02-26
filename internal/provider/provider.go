@@ -2,7 +2,9 @@ package provider
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 
@@ -80,12 +82,28 @@ func (p *RailwayProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	httpClient := http.Client{
-		Transport: &authedTransport{
-			token:   token,
-			wrapped: http.DefaultTransport,
+	proxyURL, _ := url.Parse("http://127.0.0.1:8080")
+	transport := &http.Transport{
+		Proxy: http.ProxyURL(proxyURL), // Set the Proxy here
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, // WARNING: Only use this for debugging purposes
 		},
 	}
+	authedTransport := &authedTransport{
+		token:   token,
+		wrapped: transport,
+	}
+
+	httpClient := http.Client{
+		Transport: authedTransport,
+	}
+
+	//httpClient := http.Client{
+	//	Transport: &authedTransport{
+	//		token:   token,
+	//		wrapped: http.DefaultTransport,
+	//	},
+	//}
 
 	client := graphql.NewClient("https://backboard.railway.app/graphql/v2", &httpClient)
 

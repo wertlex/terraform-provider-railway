@@ -412,7 +412,7 @@ func (v *ServiceConnectInput) GetImage() *string { return v.Image }
 func (v *ServiceConnectInput) GetRepo() *string { return v.Repo }
 
 type ServiceCreateInput struct {
-	Branch string `json:"branch"`
+	Branch *string `json:"branch,omitempty"`
 	// Environment ID. If the specified environment is a fork, the service will only
 	// be created in it. Otherwise it will created in all environments that are not
 	// forks of other environments
@@ -424,7 +424,7 @@ type ServiceCreateInput struct {
 }
 
 // GetBranch returns ServiceCreateInput.Branch, and is useful for accessing the field via an interface.
-func (v *ServiceCreateInput) GetBranch() string { return v.Branch }
+func (v *ServiceCreateInput) GetBranch() *string { return v.Branch }
 
 // GetEnvironmentId returns ServiceCreateInput.EnvironmentId, and is useful for accessing the field via an interface.
 func (v *ServiceCreateInput) GetEnvironmentId() string { return v.EnvironmentId }
@@ -494,19 +494,19 @@ func (v *ServiceDomainUpdateInput) GetServiceId() string { return v.ServiceId }
 type ServiceInstanceUpdateInput struct {
 	BuildCommand            *string                 `json:"buildCommand,omitempty"`
 	Builder                 *Builder                `json:"builder,omitempty"`
-	CronSchedule            *string                 `json:"cronSchedule"`
+	CronSchedule            *string                 `json:"cronSchedule,omitempty"`
 	HealthcheckPath         *string                 `json:"healthcheckPath,omitempty"`
 	HealthcheckTimeout      *int                    `json:"healthcheckTimeout,omitempty"`
 	NixpacksPlan            *map[string]interface{} `json:"nixpacksPlan,omitempty"`
 	NumReplicas             *int                    `json:"numReplicas,omitempty"`
-	RailwayConfigFile       string                  `json:"railwayConfigFile"`
+	RailwayConfigFile       *string                 `json:"railwayConfigFile,omitempty"`
 	Region                  *string                 `json:"region,omitempty"`
 	RestartPolicyMaxRetries *int                    `json:"restartPolicyMaxRetries,omitempty"`
 	RestartPolicyType       *RestartPolicyType      `json:"restartPolicyType,omitempty"`
-	RootDirectory           string                  `json:"rootDirectory"`
+	RootDirectory           *string                 `json:"rootDirectory,omitempty"`
 	Source                  *ServiceSourceInput     `json:"source"`
 	StartCommand            *string                 `json:"startCommand,omitempty"`
-	WatchPatterns           []string                `json:"watchPatterns"`
+	WatchPatterns           []*string               `json:"watchPatterns,omitempty"`
 }
 
 // GetBuildCommand returns ServiceInstanceUpdateInput.BuildCommand, and is useful for accessing the field via an interface.
@@ -531,7 +531,7 @@ func (v *ServiceInstanceUpdateInput) GetNixpacksPlan() *map[string]interface{} {
 func (v *ServiceInstanceUpdateInput) GetNumReplicas() *int { return v.NumReplicas }
 
 // GetRailwayConfigFile returns ServiceInstanceUpdateInput.RailwayConfigFile, and is useful for accessing the field via an interface.
-func (v *ServiceInstanceUpdateInput) GetRailwayConfigFile() string { return v.RailwayConfigFile }
+func (v *ServiceInstanceUpdateInput) GetRailwayConfigFile() *string { return v.RailwayConfigFile }
 
 // GetRegion returns ServiceInstanceUpdateInput.Region, and is useful for accessing the field via an interface.
 func (v *ServiceInstanceUpdateInput) GetRegion() *string { return v.Region }
@@ -547,7 +547,7 @@ func (v *ServiceInstanceUpdateInput) GetRestartPolicyType() *RestartPolicyType {
 }
 
 // GetRootDirectory returns ServiceInstanceUpdateInput.RootDirectory, and is useful for accessing the field via an interface.
-func (v *ServiceInstanceUpdateInput) GetRootDirectory() string { return v.RootDirectory }
+func (v *ServiceInstanceUpdateInput) GetRootDirectory() *string { return v.RootDirectory }
 
 // GetSource returns ServiceInstanceUpdateInput.Source, and is useful for accessing the field via an interface.
 func (v *ServiceInstanceUpdateInput) GetSource() *ServiceSourceInput { return v.Source }
@@ -556,11 +556,11 @@ func (v *ServiceInstanceUpdateInput) GetSource() *ServiceSourceInput { return v.
 func (v *ServiceInstanceUpdateInput) GetStartCommand() *string { return v.StartCommand }
 
 // GetWatchPatterns returns ServiceInstanceUpdateInput.WatchPatterns, and is useful for accessing the field via an interface.
-func (v *ServiceInstanceUpdateInput) GetWatchPatterns() []string { return v.WatchPatterns }
+func (v *ServiceInstanceUpdateInput) GetWatchPatterns() []*string { return v.WatchPatterns }
 
 type ServiceSourceInput struct {
-	Image *string `json:"image"`
-	Repo  *string `json:"repo"`
+	Image *string `json:"image,omitempty"`
+	Repo  *string `json:"repo,omitempty"`
 }
 
 // GetImage returns ServiceSourceInput.Image, and is useful for accessing the field via an interface.
