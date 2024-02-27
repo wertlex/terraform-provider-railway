@@ -266,33 +266,27 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		tflog.Trace(ctx, "updated a volume")
 	}
 
-	//tflog.Warn(ctx, fmt.Sprintf("will create instance input"))
-	//
-	//instanceInput := buildServiceInstanceInput(data)
-	//
-	//tflog.Warn(ctx, fmt.Sprintf("intanceInput: %+v", instanceInput))
-	//tflog.Warn(ctx, fmt.Sprintf("intanceInput.Source: %+v", instanceInput.Source))
-	//tflog.Warn(ctx, fmt.Sprintf("intanceInput.Source.Image: %s", *instanceInput.Source.Image))
-	//
-	//_, err = updateServiceInstance(ctx, *r.client, data.Id.ValueString(), instanceInput)
-	//
-	//if err != nil {
-	//	resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create service settings, got error: %s", err))
-	//	return
-	//}
+	instanceInput := buildServiceInstanceInput(data)
+
+	_, err = updateServiceInstance(ctx, *r.client, data.Id.ValueString(), instanceInput)
+
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create service settings, got error: %s", err))
+		return
+	}
 
 	tflog.Trace(ctx, "created service settings")
 
 	// updateServiceInstance not allows to specify source repo branch, which leads to Railway ignoring attached
 	// source repo since beginning of 2024.
 	// Hence, attaching repo explicitly using connectService call, which allows to specify all required params
-	if !data.SourceRepo.IsNull() {
-		connectInput := buildServiceConnectInputForGitRepo(data)
+	if !data.SourceRepo.IsNull() || !data.SourceImage.IsNull() {
+		connectInput := buildServiceConnectInput(data)
 
 		_, err := connectService(ctx, *r.client, data.Id.ValueString(), connectInput)
 
 		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to connect repo to service, got error: %s", err))
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to connect repo or image to service, got error: %s", err))
 			return
 		}
 	}
@@ -495,42 +489,10 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 		}
 	}
 
-	// Delete repo connection if it was removed
-	if data.SourceRepo.IsNull() && !state.SourceRepo.IsNull() {
-		_, err := disconnectService(ctx, *r.client, service.Id)
+	err = updateServiceConnection(ctx, *r.client, service.Id, data, state)
 
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to disconnect service from repo, got error: %s", err))
-			return
-		}
-
-		data.SourceRepoBranch = types.StringNull()
-	}
-
-	// Create repo connection if it was added
-	if !data.SourceRepo.IsNull() && state.SourceRepo.IsNull() {
-		connectInput := buildServiceConnectInputForGitRepo(data)
-
-		_, err := connectService(ctx, *r.client, data.Id.ValueString(), connectInput)
-
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to connect repo to service, got error: %s", err))
-			return
-		}
-	}
-
-	// Update repo connection if it was changed
-	if !data.SourceRepo.IsNull() && !state.SourceRepo.IsNull() {
-		if state.SourceRepo != data.SourceRepo || state.SourceRepoBranch != data.SourceRepoBranch {
-			connectInput := buildServiceConnectInputForGitRepo(data)
-
-			_, err := connectService(ctx, *r.client, data.Id.ValueString(), connectInput)
-
-			if err != nil {
-				resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to connect repo to service, got error: %s", err))
-				return
-			}
-		}
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update service repo or image connection, got error: %s", err))
 	}
 
 	err = getAndBuildServiceInstance(ctx, *r.client, data.ProjectId.ValueString(), data.Id.ValueString(), data)
@@ -593,13 +555,6 @@ func (r *ServiceResource) ImportState(ctx context.Context, req resource.ImportSt
 
 func buildServiceInstanceInput(data *ServiceResourceModel) ServiceInstanceUpdateInput {
 	var instanceInput ServiceInstanceUpdateInput
-
-	// Update the source image attributes (source repo handled differently)
-	if !data.SourceImage.IsNull() {
-		instanceInput.Source = &ServiceSourceInput{
-			Image: data.SourceImage.ValueStringPointer(),
-		}
-	}
 
 	if !data.CronSchedule.IsNull() {
 		instanceInput.CronSchedule = data.CronSchedule.ValueStringPointer()
@@ -703,13 +658,40 @@ func getAndBuildVolumeInstance(ctx context.Context, client graphql.Client, proje
 	return nil
 }
 
-// buildServiceConnectInputForGitRepo expects data.SourceRepo to be defined
-func buildServiceConnectInputForGitRepo(data *ServiceResourceModel) ServiceConnectInput {
-	var connectInput ServiceConnectInput
+func updateServiceConnection(ctx context.Context, client graphql.Client, serviceId string, data *ServiceResourceModel, state *ServiceResourceModel) error {
 
-	// it is guaranteed by schema that both of them are specified or both empty
-	connectInput.Repo = data.SourceRepo.ValueStringPointer()
-	connectInput.Branch = data.SourceRepoBranch.ValueStringPointer()
+	isSourceChanged := !state.SourceRepo.Equal(data.SourceRepo) || !state.SourceRepoBranch.Equal(data.SourceRepoBranch) || !state.SourceImage.Equal(data.SourceImage)
+	isSourcesChangedToNull := isSourceChanged && data.SourceRepo.IsNull() && data.SourceRepoBranch.IsNull() && data.SourceImage.IsNull()
 
-	return connectInput
+	// if all sources are eventually nulls, then just disconnecting all the sources
+	if isSourcesChangedToNull {
+		_, err := disconnectService(ctx, client, serviceId)
+		return err
+	}
+
+	// if some sources are really changed we just propagating these values to Railway. Data is pre-validate and Railway knows what to do.
+	if isSourceChanged {
+		connectInput := buildServiceConnectInput(data)
+		_, err := connectService(ctx, client, serviceId, connectInput)
+		return err
+	}
+
+	return nil
+}
+
+// buildServiceConnectInput build proper input which populates only required fields for each case: either Repo + Branch, or SourceImage
+func buildServiceConnectInput(data *ServiceResourceModel) ServiceConnectInput {
+	if !data.SourceRepo.IsNull() {
+		// it is guaranteed by schema that both of them are specified or both empty
+		return ServiceConnectInput{
+			Repo:   data.SourceRepo.ValueStringPointer(),
+			Branch: data.SourceRepoBranch.ValueStringPointer(),
+		}
+	} else if !data.SourceImage.IsNull() {
+		return ServiceConnectInput{
+			Image: data.SourceImage.ValueStringPointer(),
+		}
+	}
+
+	return ServiceConnectInput{}
 }
