@@ -670,7 +670,7 @@ func updateServiceConnection(ctx context.Context, client graphql.Client, service
 		return err
 	}
 
-	// if some sources are really changed we just propagating these values to Railway. Data is pre-validate and Railway knows what to do.
+	// if some sources are really changed we just propagating these values to Railway. Data is pre-validated and Railway knows what to do.
 	if isSourceChanged {
 		connectInput := buildServiceConnectInput(data)
 		_, err := connectService(ctx, client, serviceId, connectInput)
