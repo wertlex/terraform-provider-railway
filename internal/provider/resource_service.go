@@ -489,6 +489,7 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 		}
 	}
 
+	// Handling service connection with source repo or docker image
 	err = updateServiceConnection(ctx, *r.client, service.Id, data, state)
 
 	if err != nil {
