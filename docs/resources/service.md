@@ -34,8 +34,12 @@ resource "railway_service" "example" {
 
 - `config_path` (String) Path to the Railway config file. Conflicts with `source_image`.
 - `cron_schedule` (String) Cron schedule of the service.
+- `num_replicas` (Number) Number of replicas to deploy. **Default** `1`.
+- `region` (String) Region to deploy service in. **Default** `us-west1`.
 - `root_directory` (String) Directory to user for the service. Conflicts with `source_image`.
 - `source_image` (String) Source image of the service. Conflicts with `source_repo`, `source_repo_branch`, `root_directory` and `config_path`.
+- `source_image_registry_password` (String, Sensitive) Private Docker registry credentials.
+- `source_image_registry_username` (String) Private Docker registry credentials.
 - `source_repo` (String) Source repository of the service. Conflicts with `source_image`.
 - `source_repo_branch` (String) Source repository branch to be used with `source_repo`. Must be specified if `source_repo` is specified.
 - `volume` (Attributes) Volume connected to the service. (see [below for nested schema](#nestedatt--volume))

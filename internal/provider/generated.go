@@ -45,7 +45,9 @@ func (v *CustomDomain) GetServiceId() string { return v.ServiceId }
 type CustomDomainCreateInput struct {
 	Domain        string `json:"domain"`
 	EnvironmentId string `json:"environmentId"`
+	ProjectId     string `json:"projectId"`
 	ServiceId     string `json:"serviceId"`
+	TargetPort    int    `json:"targetPort"`
 }
 
 // GetDomain returns CustomDomainCreateInput.Domain, and is useful for accessing the field via an interface.
@@ -54,8 +56,14 @@ func (v *CustomDomainCreateInput) GetDomain() string { return v.Domain }
 // GetEnvironmentId returns CustomDomainCreateInput.EnvironmentId, and is useful for accessing the field via an interface.
 func (v *CustomDomainCreateInput) GetEnvironmentId() string { return v.EnvironmentId }
 
+// GetProjectId returns CustomDomainCreateInput.ProjectId, and is useful for accessing the field via an interface.
+func (v *CustomDomainCreateInput) GetProjectId() string { return v.ProjectId }
+
 // GetServiceId returns CustomDomainCreateInput.ServiceId, and is useful for accessing the field via an interface.
 func (v *CustomDomainCreateInput) GetServiceId() string { return v.ServiceId }
+
+// GetTargetPort returns CustomDomainCreateInput.TargetPort, and is useful for accessing the field via an interface.
+func (v *CustomDomainCreateInput) GetTargetPort() int { return v.TargetPort }
 
 // CustomDomainStatus includes the requested fields of the GraphQL type CustomDomainStatus.
 type CustomDomainStatus struct {
@@ -261,6 +269,7 @@ type ProjectCreateInput struct {
 	Plugins                []string           `json:"plugins"`
 	PrDeploys              bool               `json:"prDeploys"`
 	Repo                   *ProjectCreateRepo `json:"repo"`
+	Runtime                *PublicRuntime     `json:"runtime"`
 	TeamId                 *string            `json:"teamId"`
 }
 
@@ -284,6 +293,9 @@ func (v *ProjectCreateInput) GetPrDeploys() bool { return v.PrDeploys }
 
 // GetRepo returns ProjectCreateInput.Repo, and is useful for accessing the field via an interface.
 func (v *ProjectCreateInput) GetRepo() *ProjectCreateRepo { return v.Repo }
+
+// GetRuntime returns ProjectCreateInput.Runtime, and is useful for accessing the field via an interface.
+func (v *ProjectCreateInput) GetRuntime() *PublicRuntime { return v.Runtime }
 
 // GetTeamId returns ProjectCreateInput.TeamId, and is useful for accessing the field via an interface.
 func (v *ProjectCreateInput) GetTeamId() *string { return v.TeamId }
@@ -351,16 +363,21 @@ func (v *ProjectTeam) GetId() string { return v.Id }
 
 type ProjectUpdateInput struct {
 	BaseEnvironmentId *string `json:"baseEnvironmentId,omitempty"`
-	Description       string  `json:"description"`
-	IsPublic          bool    `json:"isPublic"`
-	Name              string  `json:"name"`
-	PrDeploys         bool    `json:"prDeploys"`
+	// Enable/disable pull request environments for PRs created by bots
+	BotPrEnvironments bool   `json:"botPrEnvironments"`
+	Description       string `json:"description"`
+	IsPublic          bool   `json:"isPublic"`
+	Name              string `json:"name"`
+	PrDeploys         bool   `json:"prDeploys"`
 	// [Experimental] Will be deprecated eventually
 	PrForks bool `json:"prForks"`
 }
 
 // GetBaseEnvironmentId returns ProjectUpdateInput.BaseEnvironmentId, and is useful for accessing the field via an interface.
 func (v *ProjectUpdateInput) GetBaseEnvironmentId() *string { return v.BaseEnvironmentId }
+
+// GetBotPrEnvironments returns ProjectUpdateInput.BotPrEnvironments, and is useful for accessing the field via an interface.
+func (v *ProjectUpdateInput) GetBotPrEnvironments() bool { return v.BotPrEnvironments }
 
 // GetDescription returns ProjectUpdateInput.Description, and is useful for accessing the field via an interface.
 func (v *ProjectUpdateInput) GetDescription() string { return v.Description }
@@ -376,6 +393,26 @@ func (v *ProjectUpdateInput) GetPrDeploys() bool { return v.PrDeploys }
 
 // GetPrForks returns ProjectUpdateInput.PrForks, and is useful for accessing the field via an interface.
 func (v *ProjectUpdateInput) GetPrForks() bool { return v.PrForks }
+
+type PublicRuntime string
+
+const (
+	PublicRuntimeLegacy      PublicRuntime = "LEGACY"
+	PublicRuntimeUnspecified PublicRuntime = "UNSPECIFIED"
+	PublicRuntimeV2          PublicRuntime = "V2"
+)
+
+// Private Docker registry credentials. Only available for Pro plan deployments.
+type RegistryCredentialsInput struct {
+	Password string `json:"password"`
+	Username string `json:"username"`
+}
+
+// GetPassword returns RegistryCredentialsInput.Password, and is useful for accessing the field via an interface.
+func (v *RegistryCredentialsInput) GetPassword() string { return v.Password }
+
+// GetUsername returns RegistryCredentialsInput.Username, and is useful for accessing the field via an interface.
+func (v *RegistryCredentialsInput) GetUsername() string { return v.Username }
 
 type RestartPolicyType string
 
@@ -424,11 +461,14 @@ type ServiceCreateInput struct {
 	// Environment ID. If the specified environment is a fork, the service will only
 	// be created in it. Otherwise it will created in all environments that are not
 	// forks of other environments
-	EnvironmentId *string                `json:"environmentId,omitempty"`
-	Name          string                 `json:"name"`
-	ProjectId     string                 `json:"projectId"`
-	Source        *ServiceSourceInput    `json:"source,omitempty"`
-	Variables     map[string]interface{} `json:"variables"`
+	EnvironmentId       *string                   `json:"environmentId,omitempty"`
+	Icon                *string                   `json:"icon,omitempty"`
+	Name                string                    `json:"name"`
+	ProjectId           string                    `json:"projectId"`
+	RegistryCredentials *RegistryCredentialsInput `json:"registryCredentials,omitempty"`
+	Source              *ServiceSourceInput       `json:"source,omitempty"`
+	TemplateServiceId   *string                   `json:"templateServiceId,omitempty"`
+	Variables           map[string]interface{}    `json:"variables"`
 }
 
 // GetBranch returns ServiceCreateInput.Branch, and is useful for accessing the field via an interface.
@@ -437,14 +477,25 @@ func (v *ServiceCreateInput) GetBranch() *string { return v.Branch }
 // GetEnvironmentId returns ServiceCreateInput.EnvironmentId, and is useful for accessing the field via an interface.
 func (v *ServiceCreateInput) GetEnvironmentId() *string { return v.EnvironmentId }
 
+// GetIcon returns ServiceCreateInput.Icon, and is useful for accessing the field via an interface.
+func (v *ServiceCreateInput) GetIcon() *string { return v.Icon }
+
 // GetName returns ServiceCreateInput.Name, and is useful for accessing the field via an interface.
 func (v *ServiceCreateInput) GetName() string { return v.Name }
 
 // GetProjectId returns ServiceCreateInput.ProjectId, and is useful for accessing the field via an interface.
 func (v *ServiceCreateInput) GetProjectId() string { return v.ProjectId }
 
+// GetRegistryCredentials returns ServiceCreateInput.RegistryCredentials, and is useful for accessing the field via an interface.
+func (v *ServiceCreateInput) GetRegistryCredentials() *RegistryCredentialsInput {
+	return v.RegistryCredentials
+}
+
 // GetSource returns ServiceCreateInput.Source, and is useful for accessing the field via an interface.
 func (v *ServiceCreateInput) GetSource() *ServiceSourceInput { return v.Source }
+
+// GetTemplateServiceId returns ServiceCreateInput.TemplateServiceId, and is useful for accessing the field via an interface.
+func (v *ServiceCreateInput) GetTemplateServiceId() *string { return v.TemplateServiceId }
 
 // GetVariables returns ServiceCreateInput.Variables, and is useful for accessing the field via an interface.
 func (v *ServiceCreateInput) GetVariables() map[string]interface{} { return v.Variables }
@@ -476,6 +527,7 @@ func (v *ServiceDomain) GetServiceId() string { return v.ServiceId }
 type ServiceDomainCreateInput struct {
 	EnvironmentId string `json:"environmentId"`
 	ServiceId     string `json:"serviceId"`
+	TargetPort    *int   `json:"targetPort,omitempty"`
 }
 
 // GetEnvironmentId returns ServiceDomainCreateInput.EnvironmentId, and is useful for accessing the field via an interface.
@@ -484,10 +536,14 @@ func (v *ServiceDomainCreateInput) GetEnvironmentId() string { return v.Environm
 // GetServiceId returns ServiceDomainCreateInput.ServiceId, and is useful for accessing the field via an interface.
 func (v *ServiceDomainCreateInput) GetServiceId() string { return v.ServiceId }
 
+// GetTargetPort returns ServiceDomainCreateInput.TargetPort, and is useful for accessing the field via an interface.
+func (v *ServiceDomainCreateInput) GetTargetPort() *int { return v.TargetPort }
+
 type ServiceDomainUpdateInput struct {
 	Domain        string `json:"domain"`
 	EnvironmentId string `json:"environmentId"`
 	ServiceId     string `json:"serviceId"`
+	TargetPort    int    `json:"targetPort"`
 }
 
 // GetDomain returns ServiceDomainUpdateInput.Domain, and is useful for accessing the field via an interface.
@@ -499,22 +555,26 @@ func (v *ServiceDomainUpdateInput) GetEnvironmentId() string { return v.Environm
 // GetServiceId returns ServiceDomainUpdateInput.ServiceId, and is useful for accessing the field via an interface.
 func (v *ServiceDomainUpdateInput) GetServiceId() string { return v.ServiceId }
 
+// GetTargetPort returns ServiceDomainUpdateInput.TargetPort, and is useful for accessing the field via an interface.
+func (v *ServiceDomainUpdateInput) GetTargetPort() int { return v.TargetPort }
+
 type ServiceInstanceUpdateInput struct {
-	BuildCommand            *string                 `json:"buildCommand,omitempty"`
-	Builder                 *Builder                `json:"builder,omitempty"`
-	CronSchedule            *string                 `json:"cronSchedule"`
-	HealthcheckPath         *string                 `json:"healthcheckPath,omitempty"`
-	HealthcheckTimeout      *int                    `json:"healthcheckTimeout,omitempty"`
-	NixpacksPlan            *map[string]interface{} `json:"nixpacksPlan,omitempty"`
-	NumReplicas             *int                    `json:"numReplicas,omitempty"`
-	RailwayConfigFile       string                  `json:"railwayConfigFile"`
-	Region                  *string                 `json:"region,omitempty"`
-	RestartPolicyMaxRetries *int                    `json:"restartPolicyMaxRetries,omitempty"`
-	RestartPolicyType       *RestartPolicyType      `json:"restartPolicyType,omitempty"`
-	RootDirectory           string                  `json:"rootDirectory"`
-	Source                  *ServiceSourceInput     `json:"source,omitempty"`
-	StartCommand            *string                 `json:"startCommand,omitempty"`
-	WatchPatterns           []*string               `json:"watchPatterns"`
+	BuildCommand            *string                   `json:"buildCommand,omitempty"`
+	Builder                 *Builder                  `json:"builder,omitempty"`
+	CronSchedule            *string                   `json:"cronSchedule"`
+	HealthcheckPath         *string                   `json:"healthcheckPath,omitempty"`
+	HealthcheckTimeout      *int                      `json:"healthcheckTimeout,omitempty"`
+	NixpacksPlan            *map[string]interface{}   `json:"nixpacksPlan,omitempty"`
+	NumReplicas             int                       `json:"numReplicas"`
+	RailwayConfigFile       *string                   `json:"railwayConfigFile,omitempty"`
+	Region                  string                    `json:"region"`
+	RegistryCredentials     *RegistryCredentialsInput `json:"registryCredentials,omitempty"`
+	RestartPolicyMaxRetries *int                      `json:"restartPolicyMaxRetries,omitempty"`
+	RestartPolicyType       *RestartPolicyType        `json:"restartPolicyType,omitempty"`
+	RootDirectory           *string                   `json:"rootDirectory,omitempty"`
+	Source                  *ServiceSourceInput       `json:"source,omitempty"`
+	StartCommand            *string                   `json:"startCommand,omitempty"`
+	WatchPatterns           []*string                 `json:"watchPatterns"`
 }
 
 // GetBuildCommand returns ServiceInstanceUpdateInput.BuildCommand, and is useful for accessing the field via an interface.
@@ -536,13 +596,18 @@ func (v *ServiceInstanceUpdateInput) GetHealthcheckTimeout() *int { return v.Hea
 func (v *ServiceInstanceUpdateInput) GetNixpacksPlan() *map[string]interface{} { return v.NixpacksPlan }
 
 // GetNumReplicas returns ServiceInstanceUpdateInput.NumReplicas, and is useful for accessing the field via an interface.
-func (v *ServiceInstanceUpdateInput) GetNumReplicas() *int { return v.NumReplicas }
+func (v *ServiceInstanceUpdateInput) GetNumReplicas() int { return v.NumReplicas }
 
 // GetRailwayConfigFile returns ServiceInstanceUpdateInput.RailwayConfigFile, and is useful for accessing the field via an interface.
-func (v *ServiceInstanceUpdateInput) GetRailwayConfigFile() string { return v.RailwayConfigFile }
+func (v *ServiceInstanceUpdateInput) GetRailwayConfigFile() *string { return v.RailwayConfigFile }
 
 // GetRegion returns ServiceInstanceUpdateInput.Region, and is useful for accessing the field via an interface.
-func (v *ServiceInstanceUpdateInput) GetRegion() *string { return v.Region }
+func (v *ServiceInstanceUpdateInput) GetRegion() string { return v.Region }
+
+// GetRegistryCredentials returns ServiceInstanceUpdateInput.RegistryCredentials, and is useful for accessing the field via an interface.
+func (v *ServiceInstanceUpdateInput) GetRegistryCredentials() *RegistryCredentialsInput {
+	return v.RegistryCredentials
+}
 
 // GetRestartPolicyMaxRetries returns ServiceInstanceUpdateInput.RestartPolicyMaxRetries, and is useful for accessing the field via an interface.
 func (v *ServiceInstanceUpdateInput) GetRestartPolicyMaxRetries() *int {
@@ -555,7 +620,7 @@ func (v *ServiceInstanceUpdateInput) GetRestartPolicyType() *RestartPolicyType {
 }
 
 // GetRootDirectory returns ServiceInstanceUpdateInput.RootDirectory, and is useful for accessing the field via an interface.
-func (v *ServiceInstanceUpdateInput) GetRootDirectory() string { return v.RootDirectory }
+func (v *ServiceInstanceUpdateInput) GetRootDirectory() *string { return v.RootDirectory }
 
 // GetSource returns ServiceInstanceUpdateInput.Source, and is useful for accessing the field via an interface.
 func (v *ServiceInstanceUpdateInput) GetSource() *ServiceSourceInput { return v.Source }
@@ -630,6 +695,30 @@ func (v *TCPProxyCreateInput) GetEnvironmentId() string { return v.EnvironmentId
 
 // GetServiceId returns TCPProxyCreateInput.ServiceId, and is useful for accessing the field via an interface.
 func (v *TCPProxyCreateInput) GetServiceId() string { return v.ServiceId }
+
+type VariableCollectionUpsertInput struct {
+	EnvironmentId string `json:"environmentId"`
+	ProjectId     string `json:"projectId"`
+	// When set to true, removes all existing variables before upserting the new collection.
+	Replace   bool                   `json:"replace"`
+	ServiceId *string                `json:"serviceId"`
+	Variables map[string]interface{} `json:"variables"`
+}
+
+// GetEnvironmentId returns VariableCollectionUpsertInput.EnvironmentId, and is useful for accessing the field via an interface.
+func (v *VariableCollectionUpsertInput) GetEnvironmentId() string { return v.EnvironmentId }
+
+// GetProjectId returns VariableCollectionUpsertInput.ProjectId, and is useful for accessing the field via an interface.
+func (v *VariableCollectionUpsertInput) GetProjectId() string { return v.ProjectId }
+
+// GetReplace returns VariableCollectionUpsertInput.Replace, and is useful for accessing the field via an interface.
+func (v *VariableCollectionUpsertInput) GetReplace() bool { return v.Replace }
+
+// GetServiceId returns VariableCollectionUpsertInput.ServiceId, and is useful for accessing the field via an interface.
+func (v *VariableCollectionUpsertInput) GetServiceId() *string { return v.ServiceId }
+
+// GetVariables returns VariableCollectionUpsertInput.Variables, and is useful for accessing the field via an interface.
+func (v *VariableCollectionUpsertInput) GetVariables() map[string]interface{} { return v.Variables }
 
 type VariableDeleteInput struct {
 	EnvironmentId string  `json:"environmentId"`
@@ -1099,6 +1188,18 @@ func (v *__listServiceDomainsInput) GetServiceId() string { return v.ServiceId }
 // GetProjectId returns __listServiceDomainsInput.ProjectId, and is useful for accessing the field via an interface.
 func (v *__listServiceDomainsInput) GetProjectId() string { return v.ProjectId }
 
+// __redeployServiceInstanceInput is used internally by genqlient
+type __redeployServiceInstanceInput struct {
+	EnvironmentId string `json:"environmentId"`
+	ServiceId     string `json:"serviceId"`
+}
+
+// GetEnvironmentId returns __redeployServiceInstanceInput.EnvironmentId, and is useful for accessing the field via an interface.
+func (v *__redeployServiceInstanceInput) GetEnvironmentId() string { return v.EnvironmentId }
+
+// GetServiceId returns __redeployServiceInstanceInput.ServiceId, and is useful for accessing the field via an interface.
+func (v *__redeployServiceInstanceInput) GetServiceId() string { return v.ServiceId }
+
 // __updateDeploymentTriggerInput is used internally by genqlient
 type __updateDeploymentTriggerInput struct {
 	Id    string                       `json:"id"`
@@ -1178,6 +1279,14 @@ func (v *__updateVolumeInstanceInput) GetId() string { return v.Id }
 
 // GetInput returns __updateVolumeInstanceInput.Input, and is useful for accessing the field via an interface.
 func (v *__updateVolumeInstanceInput) GetInput() VolumeInstanceUpdateInput { return v.Input }
+
+// __upsertVariableCollectionInput is used internally by genqlient
+type __upsertVariableCollectionInput struct {
+	Input VariableCollectionUpsertInput `json:"input"`
+}
+
+// GetInput returns __upsertVariableCollectionInput.Input, and is useful for accessing the field via an interface.
+func (v *__upsertVariableCollectionInput) GetInput() VariableCollectionUpsertInput { return v.Input }
 
 // __upsertVariableInput is used internally by genqlient
 type __upsertVariableInput struct {
@@ -2481,6 +2590,8 @@ type getServiceInstanceServiceInstance struct {
 	RootDirectory     *string                                               `json:"rootDirectory"`
 	RailwayConfigFile *string                                               `json:"railwayConfigFile"`
 	CronSchedule      *string                                               `json:"cronSchedule"`
+	Region            string                                                `json:"region"`
+	NumReplicas       int                                                   `json:"numReplicas"`
 }
 
 // GetSource returns getServiceInstanceServiceInstance.Source, and is useful for accessing the field via an interface.
@@ -2498,6 +2609,12 @@ func (v *getServiceInstanceServiceInstance) GetRailwayConfigFile() *string {
 
 // GetCronSchedule returns getServiceInstanceServiceInstance.CronSchedule, and is useful for accessing the field via an interface.
 func (v *getServiceInstanceServiceInstance) GetCronSchedule() *string { return v.CronSchedule }
+
+// GetRegion returns getServiceInstanceServiceInstance.Region, and is useful for accessing the field via an interface.
+func (v *getServiceInstanceServiceInstance) GetRegion() string { return v.Region }
+
+// GetNumReplicas returns getServiceInstanceServiceInstance.NumReplicas, and is useful for accessing the field via an interface.
+func (v *getServiceInstanceServiceInstance) GetNumReplicas() int { return v.NumReplicas }
 
 // getServiceInstanceServiceInstanceSourceServiceSource includes the requested fields of the GraphQL type ServiceSource.
 type getServiceInstanceServiceInstanceSourceServiceSource struct {
@@ -3050,6 +3167,17 @@ func (v *listServiceDomainsResponse) GetDomains() listServiceDomainsDomainsAllDo
 	return v.Domains
 }
 
+// redeployServiceInstanceResponse is returned by redeployServiceInstance on success.
+type redeployServiceInstanceResponse struct {
+	// Redeploy a service instance
+	ServiceInstanceRedeploy bool `json:"serviceInstanceRedeploy"`
+}
+
+// GetServiceInstanceRedeploy returns redeployServiceInstanceResponse.ServiceInstanceRedeploy, and is useful for accessing the field via an interface.
+func (v *redeployServiceInstanceResponse) GetServiceInstanceRedeploy() bool {
+	return v.ServiceInstanceRedeploy
+}
+
 // updateDeploymentTriggerDeploymentTriggerUpdateDeploymentTrigger includes the requested fields of the GraphQL type DeploymentTrigger.
 type updateDeploymentTriggerDeploymentTriggerUpdateDeploymentTrigger struct {
 	DeploymentTrigger `json:"-"`
@@ -3451,6 +3579,17 @@ func (v *updateVolumeVolumeUpdateVolume) __premarshalJSON() (*__premarshalupdate
 	retval.Name = v.Volume.Name
 	retval.VolumeInstances = v.Volume.VolumeInstances
 	return &retval, nil
+}
+
+// upsertVariableCollectionResponse is returned by upsertVariableCollection on success.
+type upsertVariableCollectionResponse struct {
+	// Upserts a collection of variables.
+	VariableCollectionUpsert bool `json:"variableCollectionUpsert"`
+}
+
+// GetVariableCollectionUpsert returns upsertVariableCollectionResponse.VariableCollectionUpsert, and is useful for accessing the field via an interface.
+func (v *upsertVariableCollectionResponse) GetVariableCollectionUpsert() bool {
+	return v.VariableCollectionUpsert
 }
 
 // upsertVariableResponse is returned by upsertVariable on success.
@@ -4372,6 +4511,8 @@ query getServiceInstance ($environmentId: String!, $serviceId: String!) {
 		rootDirectory
 		railwayConfigFile
 		cronSchedule
+		region
+		numReplicas
 	}
 }
 `,
@@ -4639,6 +4780,38 @@ fragment ServiceDomain on ServiceDomain {
 	var err error
 
 	var data listServiceDomainsResponse
+	resp := &graphql.Response{Data: &data}
+
+	err = client.MakeRequest(
+		ctx,
+		req,
+		resp,
+	)
+
+	return &data, err
+}
+
+func redeployServiceInstance(
+	ctx context.Context,
+	client graphql.Client,
+	environmentId string,
+	serviceId string,
+) (*redeployServiceInstanceResponse, error) {
+	req := &graphql.Request{
+		OpName: "redeployServiceInstance",
+		Query: `
+mutation redeployServiceInstance ($environmentId: String!, $serviceId: String!) {
+	serviceInstanceRedeploy(environmentId: $environmentId, serviceId: $serviceId)
+}
+`,
+		Variables: &__redeployServiceInstanceInput{
+			EnvironmentId: environmentId,
+			ServiceId:     serviceId,
+		},
+	}
+	var err error
+
+	var data redeployServiceInstanceResponse
 	resp := &graphql.Response{Data: &data}
 
 	err = client.MakeRequest(
@@ -4948,6 +5121,36 @@ mutation upsertVariable ($input: VariableUpsertInput!) {
 	var err error
 
 	var data upsertVariableResponse
+	resp := &graphql.Response{Data: &data}
+
+	err = client.MakeRequest(
+		ctx,
+		req,
+		resp,
+	)
+
+	return &data, err
+}
+
+func upsertVariableCollection(
+	ctx context.Context,
+	client graphql.Client,
+	input VariableCollectionUpsertInput,
+) (*upsertVariableCollectionResponse, error) {
+	req := &graphql.Request{
+		OpName: "upsertVariableCollection",
+		Query: `
+mutation upsertVariableCollection ($input: VariableCollectionUpsertInput!) {
+	variableCollectionUpsert(input: $input)
+}
+`,
+		Variables: &__upsertVariableCollectionInput{
+			Input: input,
+		},
+	}
+	var err error
+
+	var data upsertVariableCollectionResponse
 	resp := &graphql.Response{Data: &data}
 
 	err = client.MakeRequest(

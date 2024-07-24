@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
+
 	"github.com/Khan/genqlient/graphql"
 	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -46,16 +50,20 @@ var volumeAttrTypes = map[string]attr.Type{
 }
 
 type ServiceResourceModel struct {
-	Id               types.String `tfsdk:"id"`
-	Name             types.String `tfsdk:"name"`
-	ProjectId        types.String `tfsdk:"project_id"`
-	CronSchedule     types.String `tfsdk:"cron_schedule"`
-	SourceImage      types.String `tfsdk:"source_image"`
-	SourceRepo       types.String `tfsdk:"source_repo"`
-	SourceRepoBranch types.String `tfsdk:"source_repo_branch"`
-	RootDirectory    types.String `tfsdk:"root_directory"`
-	ConfigPath       types.String `tfsdk:"config_path"`
-	Volume           types.Object `tfsdk:"volume"`
+	Id                                 types.String `tfsdk:"id"`
+	Name                               types.String `tfsdk:"name"`
+	ProjectId                          types.String `tfsdk:"project_id"`
+	CronSchedule                       types.String `tfsdk:"cron_schedule"`
+	SourceImage                        types.String `tfsdk:"source_image"`
+	SourceImagePrivateRegistryUsername types.String `tfsdk:"source_image_registry_username"`
+	SourceImagePrivateRegistryPassword types.String `tfsdk:"source_image_registry_password"`
+	SourceRepo                         types.String `tfsdk:"source_repo"`
+	SourceRepoBranch                   types.String `tfsdk:"source_repo_branch"`
+	RootDirectory                      types.String `tfsdk:"root_directory"`
+	ConfigPath                         types.String `tfsdk:"config_path"`
+	Volume                             types.Object `tfsdk:"volume"`
+	Region                             types.String `tfsdk:"region"`
+	NumReplicas                        types.Int64  `tfsdk:"num_replicas"`
 }
 
 func (r *ServiceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -106,6 +114,31 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 					stringvalidator.ConflictsWith(path.MatchRoot("source_repo_branch")),
 					stringvalidator.ConflictsWith(path.MatchRoot("root_directory")),
 					stringvalidator.ConflictsWith(path.MatchRoot("config_path")),
+				},
+			},
+			"source_image_registry_username": schema.StringAttribute{
+				MarkdownDescription: "Private Docker registry credentials.",
+				Optional:            true,
+				Validators: []validator.String{
+					stringvalidator.UTF8LengthAtLeast(1),
+					stringvalidator.ConflictsWith(path.MatchRoot("source_repo")),
+					stringvalidator.ConflictsWith(path.MatchRoot("source_repo_branch")),
+					stringvalidator.ConflictsWith(path.MatchRoot("root_directory")),
+					stringvalidator.ConflictsWith(path.MatchRoot("config_path")),
+					stringvalidator.AlsoRequires(path.MatchRoot("source_image_registry_password")),
+				},
+			},
+			"source_image_registry_password": schema.StringAttribute{
+				MarkdownDescription: "Private Docker registry credentials.",
+				Optional:            true,
+				Sensitive:           true,
+				Validators: []validator.String{
+					stringvalidator.UTF8LengthAtLeast(1),
+					stringvalidator.ConflictsWith(path.MatchRoot("source_repo")),
+					stringvalidator.ConflictsWith(path.MatchRoot("source_repo_branch")),
+					stringvalidator.ConflictsWith(path.MatchRoot("root_directory")),
+					stringvalidator.ConflictsWith(path.MatchRoot("config_path")),
+					stringvalidator.AlsoRequires(path.MatchRoot("source_image_registry_username")),
 				},
 			},
 			"source_repo": schema.StringAttribute{
@@ -170,6 +203,21 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 							float64planmodifier.UseStateForUnknown(),
 						},
 					},
+				},
+			},
+			"region": schema.StringAttribute{
+				MarkdownDescription: "Region to deploy service in. **Default** `us-west1`.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("us-west1"),
+			},
+			"num_replicas": schema.Int64Attribute{
+				MarkdownDescription: "Number of replicas to deploy. **Default** `1`.",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(1),
+				Validators: []validator.Int64{
+					int64validator.AtLeast(1),
 				},
 			},
 		},
@@ -364,28 +412,30 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	input := ServiceUpdateInput{
-		Name: data.Name.ValueString(),
+	if data.Name.ValueString() != state.Name.ValueString() {
+		input := ServiceUpdateInput{
+			Name: data.Name.ValueString(),
+		}
+
+		response, err := updateService(ctx, *r.client, data.Id.ValueString(), input)
+
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update service, got error: %s", err))
+			return
+		}
+
+		tflog.Trace(ctx, "updated a service")
+
+		service := response.ServiceUpdate.Service
+
+		data.Id = types.StringValue(service.Id)
+		data.Name = types.StringValue(service.Name)
+		data.ProjectId = types.StringValue(service.ProjectId)
 	}
-
-	response, err := updateService(ctx, *r.client, data.Id.ValueString(), input)
-
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update service, got error: %s", err))
-		return
-	}
-
-	tflog.Trace(ctx, "updated a service")
-
-	service := response.ServiceUpdate.Service
-
-	data.Id = types.StringValue(service.Id)
-	data.Name = types.StringValue(service.Name)
-	data.ProjectId = types.StringValue(service.ProjectId)
 
 	instanceInput := buildServiceInstanceInput(data)
 
-	_, err = updateServiceInstance(ctx, *r.client, data.Id.ValueString(), instanceInput)
+	_, err := updateServiceInstance(ctx, *r.client, data.Id.ValueString(), instanceInput)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update service settings, got error: %s", err))
@@ -560,11 +610,22 @@ func buildServiceInstanceInput(data *ServiceResourceModel) ServiceInstanceUpdate
 	}
 
 	if !data.RootDirectory.IsNull() {
-		instanceInput.RootDirectory = data.RootDirectory.ValueString()
+		instanceInput.RootDirectory = data.RootDirectory.ValueStringPointer()
 	}
 
 	if !data.ConfigPath.IsNull() {
-		instanceInput.RailwayConfigFile = data.ConfigPath.ValueString()
+		instanceInput.RailwayConfigFile = data.ConfigPath.ValueStringPointer()
+	}
+
+	instanceInput.Region = data.Region.ValueString()
+	instanceInput.NumReplicas = int(data.NumReplicas.ValueInt64())
+
+	if !data.SourceImagePrivateRegistryUsername.IsNull() {
+		instanceInput.RegistryCredentials.Username = data.SourceImagePrivateRegistryUsername.ValueString()
+	}
+
+	if !data.SourceImagePrivateRegistryPassword.IsNull() {
+		instanceInput.RegistryCredentials.Password = data.SourceImagePrivateRegistryPassword.ValueString()
 	}
 
 	return instanceInput
@@ -588,13 +649,16 @@ func getAndBuildServiceInstance(ctx context.Context, client graphql.Client, proj
 		data.CronSchedule = types.StringValue(*response.ServiceInstance.CronSchedule)
 	}
 
-	if response.ServiceInstance.RootDirectory != nil && len(*response.ServiceInstance.RootDirectory) != 0 {
+	if response.ServiceInstance.RootDirectory != nil {
 		data.RootDirectory = types.StringValue(*response.ServiceInstance.RootDirectory)
 	}
 
-	if response.ServiceInstance.RailwayConfigFile != nil && len(*response.ServiceInstance.RailwayConfigFile) != 0 {
+	if response.ServiceInstance.RailwayConfigFile != nil {
 		data.ConfigPath = types.StringValue(*response.ServiceInstance.RailwayConfigFile)
 	}
+
+	data.Region = types.StringValue(response.ServiceInstance.Region)
+	data.NumReplicas = types.Int64Value(int64(response.ServiceInstance.NumReplicas))
 
 	if response.ServiceInstance.Source != nil {
 		if response.ServiceInstance.Source.Image != nil {

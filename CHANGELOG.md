@@ -1,3 +1,10 @@
+## master
+
+### Enhancements
+* Added `region` to `railway_service`
+* Added `num_replicas` to `railway_service`
+* Added registry credentials to `railway_service`
+
 ## 0.4.0
 
 ### BREAKING
@@ -6,7 +13,7 @@
 ## 0.3.1
 
 ### Bug fixes
-* Fix issue with replicas of a service being set to `0`.
+* Fix issue with replicas of a service being set to `0`
 
 ## 0.3.0
 
