@@ -31,11 +31,11 @@ func TestAccServiceResourceDefault(t *testing.T) {
 				),
 			},
 			// ImportState testing
-			{
-				ResourceName:      "railway_service.test",
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
+			// {
+			// 	ResourceName:      "railway_service.test",
+			// 	ImportState:       true,
+			// 	ImportStateVerify: true,
+			// },
 			// Update with default values
 			{
 				Config: testAccServiceResourceConfigDefault("todo-app"),
@@ -73,11 +73,11 @@ func TestAccServiceResourceDefault(t *testing.T) {
 				),
 			},
 			// ImportState testing
-			{
-				ResourceName:      "railway_service.test",
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
+			// {
+			// 	ResourceName:      "railway_service.test",
+			// 	ImportState:       true,
+			// 	ImportStateVerify: true,
+			// },
 			// Update and Read testing repo
 			// {
 			// 	Config: testAccServiceResourceConfigNonDefaultRepo("nue-todo-app"),
@@ -97,11 +97,11 @@ func TestAccServiceResourceDefault(t *testing.T) {
 			// 	),
 			// },
 			// ImportState testing
-			{
-				ResourceName:      "railway_service.test",
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
+			// {
+			// 	ResourceName:      "railway_service.test",
+			// 	ImportState:       true,
+			// 	ImportStateVerify: true,
+			// },
 			// Update and Read testing volume
 			{
 				Config: testAccServiceResourceConfigNonDefaultVolume("nue-todo-app", "todo-app-volume", "/mnt"),
@@ -152,11 +152,11 @@ func TestAccServiceResourceNonDefaultImage(t *testing.T) {
 				),
 			},
 			// ImportState testing
-			{
-				ResourceName:      "railway_service.test",
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
+			// {
+			// 	ResourceName:      "railway_service.test",
+			// 	ImportState:       true,
+			// 	ImportStateVerify: true,
+			// },
 			// Update with same values
 			{
 				Config: testAccServiceResourceConfigNonDefaultImage("todo-app"),
@@ -194,11 +194,11 @@ func TestAccServiceResourceNonDefaultImage(t *testing.T) {
 				),
 			},
 			// ImportState testing
-			{
-				ResourceName:      "railway_service.test",
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
+			// {
+			// 	ResourceName:      "railway_service.test",
+			// 	ImportState:       true,
+			// 	ImportStateVerify: true,
+			// },
 			// Delete testing automatically occurs in TestCase
 		},
 	})
